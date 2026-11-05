@@ -93,8 +93,10 @@
             <textarea id="message" name="message" placeholder="Tell us a little about you and what you're looking to do."></textarea>
             <div class="err" id="err-message">Please add a short message.</div>
           </div>
+          <input type="checkbox" name="botcheck" id="botcheck" tabindex="-1" autocomplete="off" style="display:none !important;">
           <button type="submit" class="btn-submit">Send enquiry →</button>
           <div class="form-note">By sending this enquiry you agree to be contacted by CSG about your request. We never share your details.</div>
+          <div id="send-err" style="display:none; color:#c0392b; font-size:13px; margin-top:12px;">Sorry — something went wrong sending your enquiry. Please email us directly at <strong>business@cykussystems.com.au</strong>.</div>
         </form>
 
         <div class="form-ok" id="ok">
@@ -153,22 +155,57 @@
     var el = document.getElementById(id);
     el.addEventListener('input', function () { setErr(id, false); });
   });
+  var KEY = '07289b9a-ead4-47da-83a7-face6496cd75';
   form.addEventListener('submit', function (ev) {
     ev.preventDefault();
     var fname = document.getElementById('fname').value.trim();
+    var lname = document.getElementById('lname').value.trim();
     var email = document.getElementById('email').value.trim();
+    var company = document.getElementById('company').value.trim();
     var message = document.getElementById('message').value.trim();
+    var interest = document.getElementById('interest').value;
     var ok = true;
     if (!fname) { setErr('fname', true); ok = false; }
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { setErr('email', true); ok = false; }
     if (!message) { setErr('message', true); ok = false; }
     if (!ok) return;
-    var interest = document.getElementById('interest').value;
-    form.style.display = 'none';
-    var okBox = document.getElementById('ok');
-    document.getElementById('ok-msg').textContent = 'Thanks, ' + fname + ' — your enquiry about "' + interest + '" is noted. A member of the CSG team will be in touch within two business days.';
-    okBox.classList.add('show');
-    okBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+
+    var sendErr = document.getElementById('send-err');
+    sendErr.style.display = 'none';
+    var btn = form.querySelector('.btn-submit');
+    var label = btn.textContent;
+    btn.disabled = true; btn.textContent = 'Sending…';
+
+    var payload = {
+      access_key: KEY,
+      subject: 'New CSG website enquiry — ' + interest,
+      from_name: 'CSG Website',
+      botcheck: document.getElementById('botcheck').checked,
+      name: (fname + ' ' + lname).trim(),
+      email: email,
+      company: company || '—',
+      interest: interest,
+      message: message
+    };
+
+    fetch('https://api.web3forms.com/submit', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Accept': 'application/json' },
+      body: JSON.stringify(payload)
+    }).then(function (r) { return r.json(); }).then(function (data) {
+      if (data && data.success) {
+        form.style.display = 'none';
+        var okBox = document.getElementById('ok');
+        document.getElementById('ok-msg').textContent = 'Thanks, ' + fname + ' — your enquiry about "' + interest + '" is on its way. A member of the CSG team will be in touch within two business days.';
+        okBox.classList.add('show');
+        okBox.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      } else {
+        throw new Error(data && data.message ? data.message : 'send failed');
+      }
+    }).catch(function () {
+      sendErr.style.display = 'block';
+      btn.disabled = false; btn.textContent = label;
+    });
   });
 })();
 </script>
